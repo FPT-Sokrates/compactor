@@ -1,7 +1,7 @@
 /*
 The MIT License
 
-Copyright (c) 2021 Steffen Görzig
+Copyright (c) 2021 Steffen GÃ¶rzig
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -24,7 +24,7 @@ THE SOFTWARE.
 
 /* SPDX-License-Identifier: MIT */
 
-#include "roadC.h"
+#include "roadc.h"
 
 #define CL_COMPILER_ACME 0 
 
