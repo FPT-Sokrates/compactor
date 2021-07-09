@@ -30,6 +30,7 @@ void readInput(void);
 void readInputFreeArrays(void);
 
 tRoadcBytePtr getInputArray(tRoadcUInt32 index);
+tRoadcBytePtr getInputPaddingByteMaskArray(tRoadcUInt32 index);
 char * getInputArrayName(tRoadcUInt32 index);
 tRoadcUInt32 getInputArraySize(tRoadcUInt32 index);
 tRoadcUInt32 getInputArrayAlignment(tRoadcUInt32 index);

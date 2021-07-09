@@ -1,7 +1,7 @@
 /*
 The MIT License
 
-Copyright (c) 2021 Steffen GÃ¶rzig
+Copyright (c) 2021 Steffen Görzig
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -31,6 +31,7 @@ THE SOFTWARE.
 #define CL_FORMAT_INT 0 
 #define CL_FORMAT_HEX 1 
 #define CL_FORMAT_OCT 2 
+#define CL_FORMAT_BIN 3 
 
 extern char *clCompressedDataName;
 extern int clCompressedDataFormat;
@@ -38,6 +39,7 @@ extern int clCompilerType;
 extern char *clArraySizePrefix;
 extern char *clFileIn;
 extern char *clFileOut;
+extern char *clFileOutBinary;
 extern tRoadcUInt32 clTimeout;
 extern int clVerbose;
 

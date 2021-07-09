@@ -31,6 +31,8 @@ char getChar(void);
 char *getString(void);
 int extractString(char *to, unsigned int consumeFlag);
 int extractNextNumberAsString(char *to, unsigned int consumeFlag);
+int extractFilename(char *to, unsigned int consumeFlag);
+int nextIsComma(unsigned int consumeFlag);
 int skipLine(void);
 
 void incColumn(unsigned int number);
