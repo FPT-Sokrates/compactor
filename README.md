@@ -4,7 +4,8 @@ Data compression:
 * with zero time for decompression
 * with zero additional memory for decompression
 * suited for read-only array data
-* supports data alignment
+* optional use of data alignments 
+* optional use of padding bit masks
 
 ## Quickstart Guide
 
