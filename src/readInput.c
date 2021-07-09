@@ -37,10 +37,18 @@ THE SOFTWARE.
 #include "readInput.h"
 #include "readInputFile.h"
 #include "readInputByte.h"
+#include "readInputBinary.h"
+
+#define RI_FORMAT_NONE 0 
+#define RI_FORMAT_BYTE 1 
+#define RI_FORMAT_BINARY 2
+
+#define RI_PADDING_FILL_VALUE 0
 
 
 #define MALLOC_NUM 65536
 tRoadcBytePtr *inputArrays=(tRoadcBytePtr *)NULL;
+tRoadcBytePtr *inputPaddingByteMaskArrays=(tRoadcBytePtr *)NULL;
 char **inputArraysAddressName=(char **)NULL;
 tRoadcUInt32 *inputArraysSize=(tRoadcUInt32 *)NULL;
 tRoadcUInt32 *inputArraysAlignment=(tRoadcUInt32 *)NULL;
@@ -76,11 +84,35 @@ void resetProcessNextLine(void){
   numInputLineArray=0;
 }
 
+int determineInputFormatType(void){
+  int inputFormatType;
+  inputFormatType = RI_FORMAT_NONE;
+  if(isByteArray()==1){
+    inputFormatType = RI_FORMAT_BYTE;
+  } else {
+    if(isBinaryArray()==1){
+      inputFormatType = RI_FORMAT_BINARY;
+    }
+  }
+  return inputFormatType;
+}
+
 void setArrayNameAndSize(int index){
+  int inputFormatType;
   int tmpVal;
 
   addInputArraysAlignment(1, index); /* default value */
-  
+
+  inputFormatType = determineInputFormatType();
+  if(inputFormatType==RI_FORMAT_BYTE){
+    fprintf (stderr, "Line: %d: Array name expected, but byte array values given. Set array name first.\n", getCurrentLine());
+    exit(0);
+  }
+  if(inputFormatType==RI_FORMAT_BINARY){
+    fprintf (stderr, "Line: %d: Array name expected, but binary array values given. Set array name first.\n", getCurrentLine());
+    exit(0);
+  }
+
   if(extractString(tmpString, 1)==0){
     fprintf (stderr, "Line: %d: Column: %d no array name given\n", getCurrentLine(), getCurrentColumn());
     exit(0);
@@ -113,6 +145,11 @@ void allocInputArrays(){
   }
   inputArrays=(tRoadcBytePtr *)malloc(MALLOC_NUM*sizeof(tRoadcBytePtr));
   if(inputArrays==(tRoadcBytePtr *)NULL){
+    fprintf (stderr, "Can not allocate new array for input data\n");
+    exit(0);
+  }
+  inputPaddingByteMaskArrays=(tRoadcBytePtr *)malloc(MALLOC_NUM*sizeof(tRoadcBytePtr));
+  if(inputPaddingByteMaskArrays==(tRoadcBytePtr *)NULL){
     fprintf (stderr, "Can not allocate new array for input data\n");
     exit(0);
   }
@@ -158,6 +195,11 @@ void reallocInputArrays(){
       fprintf (stderr, "Can not allocate new array for input data\n");
       exit(0);
     }
+    inputPaddingByteMaskArrays=(tRoadcBytePtr *)realloc((void*)inputPaddingByteMaskArrays, maxNumInputArrays*sizeof(tRoadcBytePtr));
+    if(inputPaddingByteMaskArrays==(tRoadcBytePtr *)NULL){
+      fprintf (stderr, "Can not allocate new array for input data\n");
+      exit(0);
+    }
     inputArraysAddressName=(char **)realloc((void*)inputArraysAddressName, maxNumInputArrays*sizeof(char *));
     if(inputArraysAddressName==(char **)NULL){
       fprintf (stderr, "Can not allocate new array for input data\n");
@@ -168,7 +210,16 @@ void reallocInputArrays(){
 
 void readInputFreeArrays(void){
   tRoadcUInt32 i;
+  for(i=0;i<numInputArrays;i++){
+    free((void *)inputArrays[i]);
+  }
   free((void *)inputArrays);
+  for(i=0;i<numInputArrays;i++){
+    if(inputPaddingByteMaskArrays[i]!=NULL){;
+      free((void *)inputPaddingByteMaskArrays[i]);
+    }
+  }
+  free((void *)inputPaddingByteMaskArrays);
   free((void *)inputArraysSize);
   free((void *)inputArraysAlignment);
   free((void *)inputLineArray);
@@ -180,7 +231,7 @@ void readInputFreeArrays(void){
 
 void addNewArray(){
   tRoadcBytePtr pTmp;
-  unsigned int i;
+  tRoadcUInt32 i;
 
   pTmp = (tRoadcBytePtr)malloc(numInputLineArray*sizeof(tRoadcByte)); 
   if(pTmp==(tRoadcBytePtr)NULL){                                                
@@ -199,9 +250,12 @@ void addNewArray(){
 }
 
 void readInputAcme(void){
+  tRoadcUInt32 i;
   int value;
   int skipLineFlag;
-  
+  int inputFormatType;
+  int paddingMaskWaringPrinted;
+
   allocInputArrays();
 
   while (isEndOfFile() == 0) {
@@ -213,29 +267,98 @@ void readInputAcme(void){
 
       incLine();
 
-      if(isByteArray()==0){
+      inputFormatType = determineInputFormatType();
+
+      if(inputFormatType == RI_FORMAT_NONE){
         extractString(tmpString, 0);
 	fprintf (stderr, "Line: %d Column: %d: unknown array type keyword: '%s'.\n", getCurrentLine(), getCurrentColumn(), tmpString);
 	exit(0);
       }
 
-      consumeKeywordByte();
+      if(inputFormatType == RI_FORMAT_BYTE){
+	consumeKeywordByte();
+	value = getNextValueByte();
+      }
+      if(inputFormatType == RI_FORMAT_BINARY){
+	consumeKeywordBinaryAndInit();
+	value = getNextValueBinary();
+      }
 
-      value = getNextValueByte();
 
       if (value>=0){
 	while(value>=0){
 	  inputLineArray[numInputLineArray]=(tRoadcByte)value;
-	  value = getNextValueByte();
+	  
+	  if(inputFormatType == RI_FORMAT_BYTE){
+	    value = getNextValueByte();
+	  }
+	  if(inputFormatType == RI_FORMAT_BINARY){
+	    value = getNextValueBinary();
+	  }
+	  
 	  numInputLineArray++;
 	  reallocInputLineArray();
 	}
-	if(numInputLineArray>0){
-	  addNewArray();
-	}
       }
+      if(inputFormatType == RI_FORMAT_BINARY){
+	binaryClose();
+      }
+      incLine();
+      if(numInputLineArray>0){
+	/* check for padding byte mask input */
+	inputFormatType = determineInputFormatType();
+	if(inputFormatType == RI_FORMAT_NONE){
+	  /* no padding byte mask */
+	  inputPaddingByteMaskArrays[numInputArrays]=(tRoadcBytePtr)NULL;
+	} else {
+	  if(inputFormatType == RI_FORMAT_BYTE){
+	    consumeKeywordByte();
+	  }
+	  if(inputFormatType == RI_FORMAT_BINARY){
+	    consumeKeywordBinaryAndInit();
+	  }
+	  inputPaddingByteMaskArrays[numInputArrays] =
+	    (tRoadcBytePtr)malloc(numInputLineArray*sizeof(tRoadcByte)); 
+	  if(inputPaddingByteMaskArrays[numInputArrays]==(tRoadcBytePtr)NULL){
+	    fprintf (stderr, "Can not allocate new array for input data\n");
+	    exit(0);
+	  }
+	  paddingMaskWaringPrinted=0;
+	  for(i=0; i<numInputLineArray;i++){
+	    if(inputFormatType == RI_FORMAT_BYTE){
+	      value = getNextValueByte();
+	    }
+	    if(inputFormatType == RI_FORMAT_BINARY){
+	      value = getNextValueBinary();
+	    }
+	    if(value<0){
+	      value = RI_PADDING_FILL_VALUE;
+	      if(paddingMaskWaringPrinted==0){
+		printf("WARNING: Line: %d: less bytes for padding byte mask given than array bytes given in line before, filling up with value %d. Maybe this was not intended.\n", getCurrentLine(), (int)RI_PADDING_FILL_VALUE);
+		paddingMaskWaringPrinted=1;
+	      }
+	    }
+	    inputPaddingByteMaskArrays[numInputArrays][i]=value;
+	  }
+	  if(inputFormatType == RI_FORMAT_BYTE){
+	    value = getNextValueByte();
+	  }
+	  if(inputFormatType == RI_FORMAT_BINARY){
+	    value = getNextValueBinary();
+	  }
+	  if(value>=0){
+	    printf("WARNING: Line: %d: more bytes for padding byte mask given than array bytes given in line before. Maybe this was not intended.\n", getCurrentLine());
+
+	  }
+	  if(inputFormatType == RI_FORMAT_BINARY){
+	    binaryClose();
+	  }
+	}
+	addNewArray();
+      }
+    } else {
+      incLine();
     }
-    incLine();
   }
 }  
 
@@ -261,6 +384,13 @@ tRoadcBytePtr getInputArray(tRoadcUInt32 index){
     exit(0);
   }
   return inputArrays[index];
+}
+tRoadcBytePtr getInputPaddingByteMaskArray(tRoadcUInt32 index){
+  if(index>=numInputArrays){
+    fprintf (stderr, "index too large %ld.\n", index);
+    exit(0);
+  }
+  return inputPaddingByteMaskArrays[index];
 }
 char * getInputArrayName(tRoadcUInt32 index){
   if(index>=numInputArrays){

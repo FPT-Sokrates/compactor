@@ -53,12 +53,38 @@ void writeSingleValue(void){
   }
 }
 
-void writeDataAcme(void){
-  tRoadcUInt32 i;
-  tRoadcUInt32 pos;
+void writeCompactedArrayBinary(void){
+  FILE *fpBin;
+  size_t numWritten;
+  size_t numBytes;
 
-  fprintf(fp, "%s\n", clCompressedDataName);
-  fprintf(fp, "%s", "!byte ");
+  fprintf(fp, "!binary %c%s%c\n", '"', clFileOutBinary, '"');
+
+  fpBin = fopen(clFileOutBinary, "wb");
+  if (fpBin == NULL){
+    fprintf (stderr, "Can not open binary output file %s.\n", clFileOutBinary);
+    exit(0);
+  }
+
+  if(compactedDataSize>1){
+    numBytes=(size_t)compactedDataSize;
+    numWritten = fwrite((void *)compactedData, 1, numBytes,fpBin);
+    if(numWritten!=numBytes){
+      fprintf (stderr, "Write data to binary output file %s failed. %u of %u data written\n", clFileOutBinary, (unsigned int)numWritten, (unsigned int)numBytes);
+      exit(0);
+    }
+  }
+  
+  if(fclose(fpBin)>0){
+    fprintf (stderr, "Can not close binary output file %s.\n", clFileOutBinary);
+    exit(0);
+  }
+}
+
+void writeCompactedArrayAscii(void){
+  tRoadcUInt32 i;
+
+  fprintf(fp, "!byte ");
 
   val = compactedData[0];
   writeSingleValue();
@@ -70,11 +96,40 @@ void writeDataAcme(void){
     }
   }
   fprintf(fp,"\n");
+}
 
-  for(i=0; i<getInputNumArrays(); i++){
+void writeCompactedArray(void){
+  fprintf(fp, "%s\n", clCompressedDataName);
+  if(clCompressedDataFormat==CL_FORMAT_BIN){
+    writeCompactedArrayBinary();
+  } else {
+    writeCompactedArrayAscii();
+  }
+}
+
+void writeDataAcme(void){
+  tRoadcUInt32 numArrays;
+  tRoadcUInt32 pos;
+  tRoadcUInt32 i;
+
+  if(clVerbose){
+    printf("Write compacted array...");
+  }
+  writeCompactedArray();
+  if(clVerbose){
+    printf("done.\n");
+  }
+
+  numArrays = getInputNumArrays();
+  for(i=0; i<numArrays; i++){
+    if(clVerbose){
+      printf("\rFind and write input array position in compacted array: %lu/%lu.",i+1, numArrays);
+      fflush(stdout);
+    }
+
     pos = roadcGetPositionInCompactedData(pRoadc, 
 					  getInputArray(i), 
-					  NULL, 
+					  getInputPaddingByteMaskArray(i),
 					  getInputArraySize(i), 
 					  1);
     if(pos==roadcGetCompactedDataSize(pRoadc)){
@@ -93,6 +148,9 @@ void writeDataAcme(void){
 	      getInputArraySize(i));
     }
 	    
+  }
+  if(clVerbose){
+    printf("\n");
   }
 }
 

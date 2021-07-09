@@ -43,6 +43,8 @@ int clCompilerType  = CL_COMPILER_ACME;
 char *clArraySizePrefix    = (char *)"";
 char *clFileIn = (char *)"";
 char *clFileOut = (char *)"compactedData.txt";
+char *clFileOutBinary = (char *)"compactedData.bin";
+int clFileOutBinaryDefined = 0;
 tRoadcUInt32 clTimeout=0;
 int clVerbose = 0;
 
@@ -52,6 +54,7 @@ f format - output data format
 c compiler - compiler type
 s size - array size prefix
 
+b binary outfile
 o outfile
 t timeout 
 v verbose 
@@ -59,14 +62,15 @@ h help
 */
 
 static const struct option clOptions[] = {
-  { "name",     required_argument, 0, 'n' },
-  { "format",   required_argument, 0, 'f' },
+  { "binary",   required_argument, 0, 'b' },
   { "compiler", required_argument, 0, 'c' },
-  { "size",     required_argument, 0, 's' },
+  { "format",   required_argument, 0, 'f' },
+  { "help",     no_argument,       0, 'h' },
+  { "name",     required_argument, 0, 'n' },
   { "outfile",  required_argument, 0, 'o' },
+  { "size",     required_argument, 0, 's' },
   { "timeout",  required_argument, 0, 't' },
   { "verbose",  no_argument,       0, 'v' },
-  { "help",     no_argument,       0, 'h' },
   {0, 0, 0, 0}
 };
 
@@ -92,10 +96,14 @@ commandLineParameter (int argc, char **argv)
   opterr = 0;
 
 
-  while ((c = getopt_long(argc, argv, "n:f:c:s:o:t:vh", clOptions, &index)) != -1){
+  while ((c = getopt_long(argc, argv, "b:c:f:hn:o:s:t:v", clOptions, &index)) != -1){
     switch (c){
-      case 'n':
-        clCompressedDataName = optarg;
+      case 'b':
+        clFileOutBinary = optarg;
+	clFileOutBinaryDefined = 1;
+        break;
+      case 'c':
+	setCompilerType(optarg);
         break;
       case 'f':
 	if(strncmp((const char *)optarg, "hex\n", 3)==0){
@@ -107,20 +115,29 @@ commandLineParameter (int argc, char **argv)
 	    if(strncmp((const char *)optarg, "int\n", 3)==0){
 	      clCompressedDataFormat = CL_FORMAT_INT;
 	    } else {
-	      fprintf (stderr, "Invalid argument %s for option --compressedDataFormat.\n", optarg);
-	      exit(0);
+	      if(strncmp((const char *)optarg, "bin\n", 3)==0){
+		clCompressedDataFormat = CL_FORMAT_BIN;
+	      } else {
+		fprintf (stderr, "Invalid argument %s for option --compressedDataFormat.\n", optarg);
+		exit(0);
+	      }
 	    }
 	  }
 	}
         break;
-      case 'c':
-	setCompilerType(optarg);
+      case 'h':
+	printHelpFlag=1;
+	/* do not call printHelpText() here
+	   to ensure handling of parameter verbose needed for printing */
         break;
-      case 's':
-        clArraySizePrefix = optarg;
+      case 'n':
+        clCompressedDataName = optarg;
         break;
       case 'o':
         clFileOut = optarg;
+        break;
+      case 's':
+        clArraySizePrefix = optarg;
         break;
       case 't':
         val = atoi(optarg);
@@ -132,11 +149,6 @@ commandLineParameter (int argc, char **argv)
         break;
       case 'v':
 	clVerbose = 1;
-        break;
-      case 'h':
-	printHelpFlag=1;
-	/* do not call printHelpText() here
-	   to ensure handling of parameter verbose needed for printing */
         break;
       case '?':
         if ((optopt == 'n') || 
@@ -178,5 +190,15 @@ commandLineParameter (int argc, char **argv)
     }
     fprintf (stderr, "\n");
     exit(0);
-  } 
+  }
+
+  /* check binary output consistency */
+  if(clVerbose == 1){
+    if((clFileOutBinaryDefined == 1) &&
+       (clCompressedDataFormat != CL_FORMAT_BIN)){
+      printf("WARNING: parameter mismatch - no binary output selected but binary output file set to %s.\n", clFileOutBinary);
+
+    }
+  }
+
 }

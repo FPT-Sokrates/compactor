@@ -33,9 +33,10 @@ THE SOFTWARE.
  */
 
 #include "roadc.h"
+#include "commandLineParameter.h"
 
 /* use next define for standard print output of some internal roadc information */
-/*#define ROADC_PRINTINTERNALS */
+#define ROADC_PRINTINTERNALS
 
 #ifdef ROADC_PRINTINTERNALS
 #ifdef __cplusplus
@@ -43,7 +44,7 @@ THE SOFTWARE.
 #else
 #include <stdio.h>
 #endif /* __cplusplus */
-#define ROADC_NOTIFICATION_MSG(...) fprintf (stdout, __VA_ARGS__)
+#define ROADC_NOTIFICATION_MSG(...) if(clVerbose){fprintf (stdout, __VA_ARGS__);}
 #define ROADC_ERROR_MSG(...) fprintf (stderr, __VA_ARGS__)
 #else
 #define ROADC_NOTIFICATION_MSG(...)
@@ -246,7 +247,7 @@ tRoadcUInt32 roadcLeastCommonMultiple(tRoadcUInt32 a,
   gcd = roadcGreatestCommonDivisor(a,b);
   result = ((a * b) / gcd);
   if(result>=ROADC_MAX_INPUT_SIZE){
-    ROADC_ERROR_MSG("roadC ERROR: the alignment values of the input arrays caused an overflow in alignment calculation. The result of roadC is NOT valid anymore!\n");
+    ROADC_ERROR_MSG("ERROR: the alignment values of the input arrays caused an overflow in alignment calculation. The result of roadC is NOT valid anymore!\n");
   }
   return result;
 }
@@ -750,6 +751,10 @@ void roadcAddElement(tRoadcPtr pRoadc,
     /* empty array */
     return;
   }
+  if(alignment==0){
+    /* wrong value for alignment */
+    return;
+  }
   if((pRoadc==(tRoadcPtr)NULL) ||
      (pData==(tRoadcBytePtr)NULL)){
     return;
@@ -764,10 +769,6 @@ void roadcAddElement(tRoadcPtr pRoadc,
   }
   pRoadc->roadcCurrentInputSize=pRoadc->roadcCurrentInputSize+size;
 
-  if(alignment==0){
-    /* wrong value for alignment */
-    return;
-  }
   pTmp =  roadcNewRoadcDataEntry(pData, size, pPaddingByteMask, alignment);
   /* alloc failed? */
   ROADC_ALLOC_FAILED_WITHOUT_RETURN_VALUE(pTmp);
@@ -1079,6 +1080,7 @@ tRoadcByte roadcGreedyStep(tRoadcPtr pRoadc){
   tRoadcDataEntry calcResult;
   tRoadcDataEntryPtr pNewElem;
 
+
   roadcInitDataEntry(&calcResult);
   /* this is also done by the logic in the lines below, 
      but for a better style variables are initialized */
@@ -1212,11 +1214,12 @@ tRoadcByte roadcGreedyStep(tRoadcPtr pRoadc){
         /* done for the current overlap size */
         return 0;
       } else {
-        if((*(*pRoadc->pRoadcGreedyCurrentDataEntryLarger).pNext).size>pRoadc->roadcGreedyCurrentOverlapSize){ 
+        //if((*(*pRoadc->pRoadcGreedyCurrentDataEntryLarger).pNext).size>pRoadc->roadcGreedyCurrentOverlapSize){ 
+        if((*(*(*pRoadc->pRoadcGreedyCurrentDataEntryLarger).pNext).pNext).size>pRoadc->roadcGreedyCurrentOverlapSize){ 
           roadcSetGreedyVariables(pRoadc, 
                                   (*pRoadc->pRoadcGreedyCurrentDataEntryLarger).pNext,
                                   (*(*pRoadc->pRoadcGreedyCurrentDataEntryLarger).pNext).pNext,
-                                  pRoadc->roadcGreedyCurrentOverlapSize, NULL,NULL);
+				  pRoadc->roadcGreedyCurrentOverlapSize, NULL,NULL);
         } else {
           /* done for the current overlap size */
           return 0;

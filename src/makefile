@@ -7,10 +7,10 @@ LDIR =../lib
 
 LIBS=
 
-_DEPS = commandLineParameter.h printHelpText.h readInputByte.h roadc.h compactor.h readInput.h readInputFile.h writeOutputFile.h
+_DEPS = commandLineParameter.h compactor.h printHelpText.h readInput.h readInputFile.h readInputBinary.h readInputByte.h roadc.h stringHandling.h writeOutputFile.h
 DEPS = $(patsubst %,$(IDIR)/%,$(_DEPS))
 
-_OBJ = compactor.o commandLineParameter.o printHelpText.o readInput.o readInputByte.o readInputFile.o roadc.o writeOutputFile.o
+_OBJ = commandLineParameter.o compactor.o printHelpText.o readInput.o readInputBinary.o readInputByte.o readInputFile.o roadc.o stringHandling.o writeOutputFile.o
 OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))
 
 

@@ -46,24 +46,44 @@ int main(int argc, char **argv){
 
   commandLineParameter (argc, argv);
     
+  if(clVerbose){
+    printf("compactor version 2.0\n");
+    printf("Read input start...\n");
+  }
   readInput();
+  if(clVerbose){
+    printf("...read input done.\n");
+  }
 
+  if(clVerbose){
+    printf("Calculation start....\n");
+  }
   pRoadc = roadcNew();
 
   for(i=0; i<getInputNumArrays(); i++){
     roadcAddElement(pRoadc,
 		    getInputArray(i),
-		    NULL,
+		    getInputPaddingByteMaskArray(i),
 		    getInputArraySize(i),
 		    getInputArrayAlignment(i));
+    //printf("add array no:%d size:%d alignment:%d\n", (int)i, (int)getInputArraySize(i), (int)getInputArrayAlignment(i));
   }
 
   roadcCalculation(pRoadc, 1, clTimeout);
+  if(clVerbose){
+    printf("...calculation done.\n");
+  }
 
   compactedDataSize = roadcGetCompactedDataSize(pRoadc);
   compactedData = roadcGetCompactedData(pRoadc);
 
+  if(clVerbose){
+    printf("Write start...\n");
+  }
   writeOutputFile();
+  if(clVerbose){
+    printf("...write done.\n");
+  }
 
   if(clVerbose){
     printf("Original data size:  %lu\n", getInputNumBytes());

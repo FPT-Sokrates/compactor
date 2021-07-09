@@ -45,6 +45,7 @@ static unsigned int endOfFile=0;
 static unsigned int endOfLine=0;
 static unsigned int line=0;
 static unsigned int column=0;
+static unsigned int saveColumn=0;
 
 void readNextLine(void){
   char *result;
@@ -90,6 +91,14 @@ void closeInputFile(void){
     free((void *)inputPtr);
   }
 }  
+
+void saveCurrentColumnValue(){
+  saveColumn = column;
+}
+
+void setToSavedColumnValue(){
+  column = saveColumn;
+}
 
 void incColumn(unsigned int number){
   column = column + number;
@@ -183,7 +192,8 @@ int extractString(char *to, unsigned int consumeFlag){
   return isEmpty;
 }
 
-/* consumeFlag: 0: do not change file input string
+/* Extract next found number (even after seperators)
+   consumeFlag: 0: do not change file input string
                 1: consume string from file input string
    return: 0: string not empty
            1: string is empty 
@@ -208,10 +218,7 @@ int extractNextNumberAsString(char *to, unsigned int consumeFlag){
   while((isDone==0) && (isEndOfLine()==0)){
     c = getChar();
     if((c==' ') ||
-       (c==',') ||
-       (c==';') ||
-       (c==':') ||
-       (c=='#')){
+       (c==',')){
       incColumn(1);
       consumedBytes++;
     } else {
@@ -251,6 +258,7 @@ int extractNextNumberAsString(char *to, unsigned int consumeFlag){
 	 (c=='\0') ||
 	 (c==' ')  ||
 	 (c==',')  ||
+	 (c=='/')  ||
 	 (c==';')  ||
 	 (c==':')  ||
 	 (c=='#')){
@@ -270,6 +278,120 @@ int extractNextNumberAsString(char *to, unsigned int consumeFlag){
   to[stringIndex]='\0';
 	
   return isEmpty;
+}
+
+/* consumeFlag: 0: do not change file input string
+                1: consume string from file input string
+   return: 0: string not empty
+           1: string is empty 
+*/
+int extractFilename(char *to, unsigned int consumeFlag){
+  tRoadcUInt32 i=0;
+  int quoteSignFound=0;
+  char c;
+
+  saveCurrentColumnValue();
+
+  /* search for quote sign */
+  while((quoteSignFound==0) &&(isEndOfLine()==0)){
+    c = getChar();
+    if((c=='\n') ||
+       (c=='\r') ||
+       (c=='\0')){
+      /* no propper filename found */
+      setToSavedColumnValue();
+      return 1;
+    } else {
+      if((c=='"') ||
+	 (c=='<')){
+	quoteSignFound=1;
+      }
+      incColumn(1);
+    }
+  }
+  if(quoteSignFound==0){
+    /* no propper filename found */
+    setToSavedColumnValue();
+    return 1;
+  }
+  quoteSignFound=0;
+  /* copy filename */
+  while((quoteSignFound==0) &&(isEndOfLine()==0)){
+    c = getChar();
+    if((c=='\n') ||
+       (c=='\r') ||
+       (c=='\0')){
+      /* no propper filename found */
+      setToSavedColumnValue();
+      return 1;
+    } else {
+      if((c=='"') ||
+	 (c=='>')){
+	quoteSignFound=1;
+      } else {
+	to[i]=c;
+	i++;
+      }
+      incColumn(1);
+    }
+  }
+  if(quoteSignFound==0){
+    /* no propper filename found */
+    setToSavedColumnValue();
+    return 1;
+  }
+  if(consumeFlag==0){
+    setToSavedColumnValue();
+  }
+  to[i]='\0';
+  return 0;
+}
+
+
+/* consumeFlag: 0: do not change file input string
+                1: consume string from file input string
+   return: 0: no comma 
+           1: comma
+*/
+int nextIsComma(unsigned int consumeFlag){
+  int commaFound=0;
+  char c;
+
+  saveCurrentColumnValue();
+
+  /* search for quote sign */
+  while((commaFound==0) &&(isEndOfLine()==0)){
+    c = getChar();
+    if((c=='\n') ||
+       (c=='\r') ||
+       (c=='\0')){
+      /* no comma found */
+      setToSavedColumnValue();
+      return 0;
+    } else {
+      if((c==',')){
+	commaFound=1;
+	incColumn(1);
+      } else {
+	if((c==' ')){
+	  incColumn(1);
+	} else {
+	  /* no comma found */
+	  setToSavedColumnValue();
+	  return 0;
+	}
+      }
+    }
+  }
+  if(commaFound==0){
+    /* no comma found */
+    setToSavedColumnValue();
+    return 0;
+  }
+  if(consumeFlag==0){
+    setToSavedColumnValue();
+  }
+  return 1;
 }
 
 
